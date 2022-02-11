@@ -28,4 +28,5 @@ jobs:
         pip install scipy
     - name: Test with pytest
       run: |
-        pytest test_fourier_transforms.py
+        pytest test_KdV.py
+        pytest test_SHE.py
