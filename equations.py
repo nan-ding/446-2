@@ -113,7 +113,7 @@ class CGLEquation:
         self.ux = ux = spectral.Field(domain, dtype=dtype)
         self.u_RHS = spectral.Field(domain, dtype=dtype)
         self.ux_RHS = spectral.Field(domain, dtype=dtype)
-        self.problem = spectral.InitialValueProblem(domain, [u, ux], [self.ux_RHS, self.u_RHS],
+        self.problem = spectral.InitialValueProblem(domain, [u, ux], [self.u_RHS, self.ux_RHS],
                                                     num_BCs=2, dtype=dtype)
         
         self.x_basis = domain.bases[0]
@@ -153,11 +153,11 @@ class CGLEquation:
         #Z = np.zeros((N, N)) 
         # diagz = -np.ones(N)
         # Z = sparse.diags(diagz) #takes care of the -u part
-        L = sparse.bmat([[-D, C],
-                         [-C, -(1+b*1j)*D]])
+        L = sparse.bmat([[D, -C],
+                         [-C, -(1+b*1j)*D]]) #need to normalize the matrix
         L = sparse.bmat([[      L,   cols],
                          [BC_rows, corner]])
-        L = L.tocsr()
+        #L = L.tocsr()
         p.L = L
         self.t = 0
         
@@ -174,25 +174,31 @@ class CGLEquation:
         ux_RHS = self.ux_RHS
         ux = self.ux
         c = -1.76
-
+        BC_func = lambda t: [0*t, 0*t]
 
         for i in range(num_steps):
             # take a timestep
             
             #compute dudx
             u.require_coeff_space()
+            #ux.require_grid_space()
+            u.require_grid_space(scales=3)
+            
+            u_RHS.require_coeff_space()
             ux_RHS.require_coeff_space()
-            ux_RHS.require_grid_space(3/2)
-            u.require_grid_space(3/2)
+            ux_RHS.require_grid_space(scales=3)
+            
+        
             ux_RHS.data = np.absolute(u.data)**2*u.data  #the square of u in grid space
             
-            u.require_coeff_space()
+            
             ux_RHS.require_coeff_space()
-            ux_RHS.data = ux_RHS.data*(1+1j*c)
-            
+            ux_RHS.data = -(1+c*1j)*self.C @ ux_RHS.data
+            u.require_coeff_space()
             ux_RHS.require_grid_space(scales=3/2)
+        
             
-            ts.step(dt)
+            ts.step(dt, BC_func(self.t))
             self.t += dt
             
            
